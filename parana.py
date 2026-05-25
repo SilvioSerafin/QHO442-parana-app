@@ -1,5 +1,22 @@
 import sqlite3
 
+# Helper function to display a numbered list and return the selected id
+def _display_options(all_options, title, type):
+    option_num = 1
+    option_list = []
+    print("\n", title, "\n")
+    for option in all_options:
+        code = option[0]
+        desc = option[1]
+        print("{0}.\t{1}".format(option_num, desc))
+        option_num = option_num + 1
+        option_list.append(code)
+    selected_option = 0
+    while selected_option > len(option_list) or selected_option == 0:
+        prompt = "Enter the number against the " + type + " you want to choose: "
+        selected_option = int(input(prompt))
+    return option_list[selected_option - 1]
+
 # Connect to the database
 conn = sqlite3.connect('parana.db')
 cursor = conn.cursor()
@@ -85,3 +102,96 @@ while True:
                 print(f"  Product: {row[2]}")
                 print(f"  Seller: {row[3]}  Price: {row[4]}  Qty: {row[5]}  Status: {row[6]}")
                 print("-" * 80)
+
+    elif choice == 2:
+        # Option 2 - Add an item to your basket
+
+        # Step 1 - Display categories in alphabetical order
+        cursor.execute("SELECT category_id, category_description FROM categories ORDER BY category_description ASC")
+        categories = cursor.fetchall()
+        category_id = _display_options(categories, "PRODUCT CATEGORIES", "category")
+
+        # Step 2 - Display products in the selected category
+        cursor.execute("""
+            SELECT product_id, product_description
+            FROM products
+            WHERE category_id = ?
+            ORDER BY product_description ASC
+        """, (category_id,))
+        products = cursor.fetchall()
+        product_id = _display_options(products, "PRODUCTS", "product")
+
+        # Step 3 - Display sellers for the selected product
+        cursor.execute("""
+            SELECT s.seller_id, s.seller_name || ' - £' || printf('%.2f', ps.price)
+            FROM sellers s
+            JOIN product_sellers ps ON s.seller_id = ps.seller_id
+            WHERE ps.product_id = ?
+            ORDER BY s.seller_name ASC
+        """, (product_id,))
+        sellers = cursor.fetchall()
+        seller_id = _display_options(sellers, "SELLERS", "seller")
+
+        # Step 4 - Get quantity from user
+        quantity = 0
+        while quantity <= 0:
+            quantity = int(input("Enter the quantity you want to order: "))
+            if quantity <= 0:
+                print("The quantity must be greater than 0")
+
+        # Step 5 - Get the price for the selected product and seller
+        cursor.execute("""
+            SELECT price FROM product_sellers
+            WHERE product_id = ? AND seller_id = ?
+        """, (product_id, seller_id))
+        price = cursor.fetchone()[0]
+
+        # Step 6 - Create a new basket if one doesn't exist
+        if basket_id is None:
+            cursor.execute("SELECT seq FROM sqlite_sequence WHERE name = 'shopper_baskets'")
+            last_id = cursor.fetchone()[0]
+            basket_id = last_id + 1
+            cursor.execute("""
+                INSERT INTO shopper_baskets (basket_id, shopper_id, basket_created_date_time)
+                VALUES (?, ?, datetime('now'))
+            """, (basket_id, shopper_id))
+
+        # Step 7 - Insert item into basket contents
+        cursor.execute("""
+            INSERT INTO basket_contents (basket_id, product_id, seller_id, quantity, price)
+            VALUES (?, ?, ?, ?, ?)
+        """, (basket_id, product_id, seller_id, quantity, price))
+
+        conn.commit()
+        print("Item added to your basket!")
+
+    elif choice == 3:
+        # Option 3 - View your basket
+        if basket_id is None:
+            print("Your basket is empty")
+        else:
+            cursor.execute("""
+                SELECT bc.rowid, p.product_description, s.seller_name,
+                       bc.quantity, bc.price, (bc.quantity * bc.price)
+                FROM basket_contents bc
+                JOIN products p ON bc.product_id = p.product_id
+                JOIN sellers s ON bc.seller_id = s.seller_id
+                WHERE bc.basket_id = ?
+            """, (basket_id,))
+
+            items = cursor.fetchall()
+
+            if not items:
+                print("Your basket is empty")
+            else:
+                print("\nYOUR BASKET")
+                print("-" * 80)
+                total = 0
+                item_num = 1
+                for item in items:
+                    print(f"{item_num}. {item[1]}")
+                    print(f"   Seller: {item[2]}  Qty: {item[3]}  Price: £{item[4]:.2f}  Subtotal: £{item[5]:.2f}")
+                    total += item[5]
+                    item_num += 1
+                print("-" * 80)
+                print(f"TOTAL: £{total:.2f}")
