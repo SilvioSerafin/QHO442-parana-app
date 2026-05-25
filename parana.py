@@ -357,3 +357,76 @@ while True:
                         print(f"TOTAL: £{total:.2f}")
                 else:
                     print("Item not removed.")
+
+    elif choice == 6:
+        # Option 6 - Checkout
+        if basket_id is None:
+            print("Your basket is empty. Nothing to checkout.")
+        else:
+            cursor.execute("""
+                SELECT bc.rowid, p.product_description, s.seller_name,
+                       bc.quantity, bc.price, (bc.quantity * bc.price),
+                       bc.product_id, bc.seller_id
+                FROM basket_contents bc
+                JOIN products p ON bc.product_id = p.product_id
+                JOIN sellers s ON bc.seller_id = s.seller_id
+                WHERE bc.basket_id = ?
+            """, (basket_id,))
+
+            items = cursor.fetchall()
+
+            if not items:
+                print("Your basket is empty. Nothing to checkout.")
+            else:
+                # Display basket and ask for confirmation
+                print("\nYOUR BASKET")
+                print("-" * 80)
+                total = 0
+                item_num = 1
+                for item in items:
+                    print(f"{item_num}. {item[1]}")
+                    print(f"   Seller: {item[2]}  Qty: {item[3]}  Price: £{item[4]:.2f}  Subtotal: £{item[5]:.2f}")
+                    total += item[5]
+                    item_num += 1
+                print("-" * 80)
+                print(f"TOTAL: £{total:.2f}")
+
+                confirm = input("\nDo you wish to proceed with the checkout? (Y/N): ")
+
+                if confirm.upper() == "Y":
+                    try:
+                        # Insert a new order into shopper_orders
+                        cursor.execute("""
+                            INSERT INTO shopper_orders (shopper_id, order_date, order_status)
+                            VALUES (?, DATE('now'), 'Placed')
+                        """, (shopper_id,))
+
+                        # Get the new order id
+                        new_order_id = cursor.lastrowid
+
+                        # Insert each basket item into ordered_products
+                        for item in items:
+                            cursor.execute("""
+                                INSERT INTO ordered_products (order_id, product_id, seller_id, quantity, price, ordered_product_status)
+                                VALUES (?, ?, ?, ?, ?, 'Placed')
+                            """, (new_order_id, item[6], item[7], item[3], item[4]))
+
+                        # Delete basket contents and basket
+                        cursor.execute("DELETE FROM basket_contents WHERE basket_id = ?", (basket_id,))
+                        cursor.execute("DELETE FROM shopper_baskets WHERE basket_id = ?", (basket_id,))
+
+                        # Commit the whole transaction
+                        conn.commit()
+
+                        # Reset basket id
+                        basket_id = None
+
+                        print("Checkout complete, your order has been placed.")
+
+                    except Exception as e:
+                        # Roll back if anything goes wrong
+                        conn.rollback()
+                        print(f"An error occurred during checkout: {e}")
+                        print("Your basket has not been affected.")
+                else:
+                    print("Checkout cancelled. Returning to menu.")
