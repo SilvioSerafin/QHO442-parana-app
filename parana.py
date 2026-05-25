@@ -215,7 +215,6 @@ while True:
             if not items:
                 print("Your basket is empty")
             else:
-                # Display the basket
                 print("\nYOUR BASKET")
                 print("-" * 80)
                 total = 0
@@ -238,7 +237,6 @@ while True:
                 else:
                     basket_item_no = 1
 
-                # Get the rowid of the selected item
                 selected_rowid = items[basket_item_no - 1][0]
 
                 # Get new quantity
@@ -279,3 +277,83 @@ while True:
                     item_num += 1
                 print("-" * 80)
                 print(f"TOTAL: £{total:.2f}")
+
+    elif choice == 5:
+        # Option 5 - Remove an item from your basket
+        if basket_id is None:
+            print("Your basket is empty")
+        else:
+            cursor.execute("""
+                SELECT bc.rowid, p.product_description, s.seller_name,
+                       bc.quantity, bc.price, (bc.quantity * bc.price)
+                FROM basket_contents bc
+                JOIN products p ON bc.product_id = p.product_id
+                JOIN sellers s ON bc.seller_id = s.seller_id
+                WHERE bc.basket_id = ?
+            """, (basket_id,))
+
+            items = cursor.fetchall()
+
+            if not items:
+                print("Your basket is empty")
+            else:
+                print("\nYOUR BASKET")
+                print("-" * 80)
+                total = 0
+                item_num = 1
+                for item in items:
+                    print(f"{item_num}. {item[1]}")
+                    print(f"   Seller: {item[2]}  Qty: {item[3]}  Price: £{item[4]:.2f}  Subtotal: £{item[5]:.2f}")
+                    total += item[5]
+                    item_num += 1
+                print("-" * 80)
+                print(f"TOTAL: £{total:.2f}")
+
+                # If more than one item ask which to remove
+                if len(items) > 1:
+                    basket_item_no = 0
+                    while basket_item_no < 1 or basket_item_no > len(items):
+                        basket_item_no = int(input("\nEnter the basket item no. you want to remove: "))
+                        if basket_item_no < 1 or basket_item_no > len(items):
+                            print("The basket item no. you have entered is invalid")
+                else:
+                    basket_item_no = 1
+
+                selected_rowid = items[basket_item_no - 1][0]
+
+                # Confirm removal
+                confirm = input(f"Are you sure you want to remove item {basket_item_no} from your basket? (Y/N): ")
+
+                if confirm.upper() == "Y":
+                    cursor.execute("DELETE FROM basket_contents WHERE rowid = ?", (selected_rowid,))
+                    conn.commit()
+
+                    # Check if basket is now empty
+                    cursor.execute("SELECT COUNT(*) FROM basket_contents WHERE basket_id = ?", (basket_id,))
+                    remaining = cursor.fetchone()[0]
+
+                    if remaining == 0:
+                        print("Your basket is empty")
+                    else:
+                        cursor.execute("""
+                            SELECT bc.rowid, p.product_description, s.seller_name,
+                                   bc.quantity, bc.price, (bc.quantity * bc.price)
+                            FROM basket_contents bc
+                            JOIN products p ON bc.product_id = p.product_id
+                            JOIN sellers s ON bc.seller_id = s.seller_id
+                            WHERE bc.basket_id = ?
+                        """, (basket_id,))
+                        updated_items = cursor.fetchall()
+                        print("\nUPDATED BASKET")
+                        print("-" * 80)
+                        total = 0
+                        item_num = 1
+                        for item in updated_items:
+                            print(f"{item_num}. {item[1]}")
+                            print(f"   Seller: {item[2]}  Qty: {item[3]}  Price: £{item[4]:.2f}  Subtotal: £{item[5]:.2f}")
+                            total += item[5]
+                            item_num += 1
+                        print("-" * 80)
+                        print(f"TOTAL: £{total:.2f}")
+                else:
+                    print("Item not removed.")
