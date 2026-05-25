@@ -195,3 +195,87 @@ while True:
                     item_num += 1
                 print("-" * 80)
                 print(f"TOTAL: £{total:.2f}")
+
+    elif choice == 4:
+        # Option 4 - Change the quantity of an item in your basket
+        if basket_id is None:
+            print("Your basket is empty")
+        else:
+            cursor.execute("""
+                SELECT bc.rowid, p.product_description, s.seller_name,
+                       bc.quantity, bc.price, (bc.quantity * bc.price)
+                FROM basket_contents bc
+                JOIN products p ON bc.product_id = p.product_id
+                JOIN sellers s ON bc.seller_id = s.seller_id
+                WHERE bc.basket_id = ?
+            """, (basket_id,))
+
+            items = cursor.fetchall()
+
+            if not items:
+                print("Your basket is empty")
+            else:
+                # Display the basket
+                print("\nYOUR BASKET")
+                print("-" * 80)
+                total = 0
+                item_num = 1
+                for item in items:
+                    print(f"{item_num}. {item[1]}")
+                    print(f"   Seller: {item[2]}  Qty: {item[3]}  Price: £{item[4]:.2f}  Subtotal: £{item[5]:.2f}")
+                    total += item[5]
+                    item_num += 1
+                print("-" * 80)
+                print(f"TOTAL: £{total:.2f}")
+
+                # If more than one item ask which one to update
+                if len(items) > 1:
+                    basket_item_no = 0
+                    while basket_item_no < 1 or basket_item_no > len(items):
+                        basket_item_no = int(input("\nEnter the basket item no. you want to update: "))
+                        if basket_item_no < 1 or basket_item_no > len(items):
+                            print("The basket item no. you have entered is invalid")
+                else:
+                    basket_item_no = 1
+
+                # Get the rowid of the selected item
+                selected_rowid = items[basket_item_no - 1][0]
+
+                # Get new quantity
+                new_quantity = 0
+                while new_quantity <= 0:
+                    new_quantity = int(input("Enter the new quantity: "))
+                    if new_quantity <= 0:
+                        print("The quantity must be greater than 0")
+
+                # Update the basket
+                cursor.execute("""
+                    UPDATE basket_contents
+                    SET quantity = ?
+                    WHERE rowid = ?
+                """, (new_quantity, selected_rowid))
+
+                conn.commit()
+
+                # Display updated basket
+                cursor.execute("""
+                    SELECT bc.rowid, p.product_description, s.seller_name,
+                           bc.quantity, bc.price, (bc.quantity * bc.price)
+                    FROM basket_contents bc
+                    JOIN products p ON bc.product_id = p.product_id
+                    JOIN sellers s ON bc.seller_id = s.seller_id
+                    WHERE bc.basket_id = ?
+                """, (basket_id,))
+
+                updated_items = cursor.fetchall()
+                print("\nUPDATED BASKET")
+                print("-" * 80)
+                total = 0
+                item_num = 1
+                for item in updated_items:
+                    print(f"{item_num}. {item[1]}")
+                    print(f"   Seller: {item[2]}  Qty: {item[3]}  Price: £{item[4]:.2f}  Subtotal: £{item[5]:.2f}")
+                    total += item[5]
+                    item_num += 1
+                print("-" * 80)
+                print(f"TOTAL: £{total:.2f}")
