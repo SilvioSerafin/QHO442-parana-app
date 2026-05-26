@@ -14,7 +14,10 @@ def _display_options(all_options, title, type):
     selected_option = 0
     while selected_option > len(option_list) or selected_option == 0:
         prompt = "Enter the number against the " + type + " you want to choose: "
-        selected_option = int(input(prompt))
+        try:
+            selected_option = int(input(prompt))
+        except ValueError:
+            print("Invalid input. Please enter a number.")
     return option_list[selected_option - 1]
 
 # Connect to the database
@@ -22,7 +25,11 @@ conn = sqlite3.connect('parana.db')
 cursor = conn.cursor()
 
 # Ask user for their shopper ID
-shopper_id = int(input("Please enter your shopper ID: "))
+try:
+    shopper_id = int(input("Please enter your shopper ID: "))
+except ValueError:
+    print("Invalid input. Please enter a number.")
+    exit()
 
 # Check if the shopper exists in the database
 cursor.execute("SELECT shopper_first_name, shopper_surname FROM shoppers WHERE shopper_id = ?", (shopper_id,))
@@ -66,7 +73,11 @@ while True:
     print("7. Exit")
     print("\n")
 
-    choice = int(input("Please enter your choice: "))
+    try:
+        choice = int(input("Please enter your choice: "))
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+        continue
 
     if choice == 7:
         print("Thank you for shopping with Paraná. Goodbye!")
@@ -135,9 +146,12 @@ while True:
         # Step 4 - Get quantity from user
         quantity = 0
         while quantity <= 0:
-            quantity = int(input("Enter the quantity you want to order: "))
-            if quantity <= 0:
-                print("The quantity must be greater than 0")
+            try:
+                quantity = int(input("Enter the quantity you want to order: "))
+                if quantity <= 0:
+                    print("The quantity must be greater than 0")
+            except ValueError:
+                print("Invalid input. Please enter a number.")
 
         # Step 5 - Get the price for the selected product and seller
         cursor.execute("""
@@ -231,9 +245,12 @@ while True:
                 if len(items) > 1:
                     basket_item_no = 0
                     while basket_item_no < 1 or basket_item_no > len(items):
-                        basket_item_no = int(input("\nEnter the basket item no. you want to update: "))
-                        if basket_item_no < 1 or basket_item_no > len(items):
-                            print("The basket item no. you have entered is invalid")
+                        try:
+                            basket_item_no = int(input("\nEnter the basket item no. you want to update: "))
+                            if basket_item_no < 1 or basket_item_no > len(items):
+                                print("The basket item no. you have entered is invalid")
+                        except ValueError:
+                            print("Invalid input. Please enter a number.")
                 else:
                     basket_item_no = 1
 
@@ -242,9 +259,12 @@ while True:
                 # Get new quantity
                 new_quantity = 0
                 while new_quantity <= 0:
-                    new_quantity = int(input("Enter the new quantity: "))
-                    if new_quantity <= 0:
-                        print("The quantity must be greater than 0")
+                    try:
+                        new_quantity = int(input("Enter the new quantity: "))
+                        if new_quantity <= 0:
+                            print("The quantity must be greater than 0")
+                    except ValueError:
+                        print("Invalid input. Please enter a number.")
 
                 # Update the basket
                 cursor.execute("""
@@ -313,9 +333,12 @@ while True:
                 if len(items) > 1:
                     basket_item_no = 0
                     while basket_item_no < 1 or basket_item_no > len(items):
-                        basket_item_no = int(input("\nEnter the basket item no. you want to remove: "))
-                        if basket_item_no < 1 or basket_item_no > len(items):
-                            print("The basket item no. you have entered is invalid")
+                        try:
+                            basket_item_no = int(input("\nEnter the basket item no. you want to remove: "))
+                            if basket_item_no < 1 or basket_item_no > len(items):
+                                print("The basket item no. you have entered is invalid")
+                        except ValueError:
+                            print("Invalid input. Please enter a number.")
                 else:
                     basket_item_no = 1
 
@@ -378,7 +401,6 @@ while True:
             if not items:
                 print("Your basket is empty. Nothing to checkout.")
             else:
-                # Display basket and ask for confirmation
                 print("\nYOUR BASKET")
                 print("-" * 80)
                 total = 0
@@ -430,3 +452,6 @@ while True:
                         print("Your basket has not been affected.")
                 else:
                     print("Checkout cancelled. Returning to menu.")
+
+    else:
+        print("Invalid choice. Please enter a number between 1 and 7.")
